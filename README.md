@@ -40,8 +40,8 @@ Most deck sites (like RoyaleAPI) show "Meta Decks" used by maxed-out top players
 
 1.  **Clone the repo**
     ```bash
-    git clone [https://github.com/yourusername/royalfit.git](https://github.com/yourusername/royalfit.git)
-    cd royalfit
+    git clone [https://github.com/yourusername/cr-deck-builder.git](https://github.com/yourusername/cr-deck-builder.git)
+    cd cr-deck-builder
     ```
 
 2.  **Install dependencies**
