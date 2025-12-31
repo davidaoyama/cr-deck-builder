@@ -1,4 +1,4 @@
-# cr-deck-builder
+# Clash Royale Deck Builder
 > **Play the hand you're dealt.**
 > Find high-win-rate Clash Royale decks that you can *actually* build with your current card levels.
 
@@ -11,7 +11,7 @@ Most deck sites (like RoyaleAPI) show "Meta Decks" used by maxed-out top players
 * Your Goblin Barrel is Level 9 (and will die to a Zap).
 * Your average deck level is too low to compete.
 
-**RoyalFit** solves this by syncing with your player profile to show you **only** the winning decks you can build right now.
+**CRDB** solves this by syncing with your player profile to show you **only** the winning decks you can build right now.
 
 ## ✨ Features
 - **One-Click Sync:** Enter your `#PLAYER_TAG` to instantly fetch your card collection and levels.
