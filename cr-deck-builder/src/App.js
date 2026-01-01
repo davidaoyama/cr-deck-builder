@@ -8,33 +8,9 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const handlePlayerSearch = async (playerTag) => {
-    setLoading(true);
-    setError(null);
-    setPlayerData(null);
-
-    try {
-      // Using the Clash Royale API
-      const response = await fetch(
-        `https://api.clashroyale.com/v1/players/${encodeURIComponent(playerTag)}`,
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.REACT_APP_CR_API_KEY}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Player not found. Please check your player tag.');
-      }
-
-      const data = await response.json();
-      setPlayerData(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  const handlePlayerSearch = (playerTag, snapshot) => {
+    // Called from PlayerSearch with the synced snapshot from backend
+    setPlayerData(snapshot);
   };
 
   return (
@@ -51,23 +27,27 @@ function App() {
           <PlayerSearch onSearch={handlePlayerSearch} loading={loading} />
         </div>
 
-        {error && (
-          <div className="error-message">
-            <p>❌ Error: {error}</p>
+        {playerData && !loading && (
+          <div className="player-info">
+            <h2>✅ Player Found!</h2>
+            <div className="player-details">
+              <p><strong>Name:</strong> {playerData.player_name}</p>
+              <p><strong>Tag:</strong> {playerData.player_tag}</p>
+            </div>
+          </div>
+        )}
+
+        {playerData && !loading && <PlayerCards playerData={playerData} />}
+
+        {!playerData && !loading && (
+          <div className="empty-state">
+            <p>Enter your player tag above to get started</p>
           </div>
         )}
 
         {loading && (
           <div className="loading">
             <div className="spinner"></div>
-          </div>
-        )}
-
-        {playerData && !loading && <PlayerCards playerData={playerData} />}
-
-        {!playerData && !loading && !error && (
-          <div className="empty-state">
-            <p>Enter your player tag above to get started</p>
           </div>
         )}
       </main>
