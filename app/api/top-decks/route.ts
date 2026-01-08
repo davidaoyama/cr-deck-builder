@@ -18,9 +18,10 @@ export async function GET() {
 
     console.log('[API] Cache miss - fetching fresh top decks');
 
-    // Step 1: Fetch top 50 players from global rankings
+    // Step 1: Fetch top 50 players from global trophy rankings
+    // Using the international location which represents global rankings
     const rankingsResponse = await fetch(
-      `${CR_API_CONFIG.baseUrl}/locations/global/rankings/players?limit=50`,
+      `${CR_API_CONFIG.baseUrl}/locations/57000249/rankings/players?limit=50`,
       {
         headers: createApiHeaders(),
       }
@@ -40,7 +41,8 @@ export async function GET() {
     }
 
     const rankingsData: GlobalRankingsResponse = await rankingsResponse.json();
-    console.log(`[API] Fetched ${rankingsData.items.length} top players`);
+    console.log(`[API] Rankings response:`, JSON.stringify(rankingsData, null, 2).substring(0, 500));
+    console.log(`[API] Fetched ${rankingsData.items?.length || 0} top players`);
 
     // Step 2: Fetch each player's full profile to get their current deck
     // Process in batches to avoid overwhelming the API
