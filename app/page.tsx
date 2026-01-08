@@ -1,151 +1,167 @@
 'use client';
 
 import { useState } from 'react';
+import PlayerTagInput from '@/components/PlayerTagInput';
+import DeckGrid from '@/components/DeckGrid';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import type { PlayerData, Deck, FilteredDeck, UserCollection, LoadingState } from '@/types';
+import { filterDecks, createUserCollection } from '@/lib/deck-filters';
+import { addRecentSearch } from '@/lib/utils';
 
 export default function Home() {
-  const [playerTag, setPlayerTag] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<string>('');
+  const [playerData, setPlayerData] = useState<PlayerData | null>(null);
+  const [userCollection, setUserCollection] = useState<UserCollection>({});
+  const [topDecks, setTopDecks] = useState<Deck[]>([]);
+  const [filteredDecks, setFilteredDecks] = useState<FilteredDeck[]>([]);
+  const [loadingState, setLoadingState] = useState<LoadingState>('idle');
+  const [error, setError] = useState<string | null>(null);
 
-  const testPlayerAPI = async () => {
-    setLoading(true);
-    setResult('');
-
-    try {
-      const encodedTag = encodeURIComponent(playerTag);
-      const response = await fetch(`/api/player/${encodedTag}`);
-      const data = await response.json();
-
-      if (response.ok) {
-        setResult(`✅ Found player: ${data.name} with ${data.cards.length} cards`);
-      } else {
-        setResult(`❌ Error: ${data.message}`);
-      }
-    } catch (error) {
-      setResult(`❌ Error: ${error}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const testTopDecksAPI = async () => {
-    setLoading(true);
-    setResult('');
+  const handlePlayerTagSubmit = async (tag: string) => {
+    setError(null);
+    setLoadingState('loading-player');
 
     try {
-      const response = await fetch('/api/top-decks');
-      const data = await response.json();
+      // Step 1: Fetch player data
+      const encodedTag = encodeURIComponent(tag);
+      const playerResponse = await fetch(`/api/player/${encodedTag}`);
+      const playerDataResult = await playerResponse.json();
 
-      if (response.ok) {
-        setResult(`✅ Fetched ${data.decks.length} top decks ${data.cached ? '(from cache)' : '(fresh)'}`);
-      } else {
-        setResult(`❌ Error: ${data.message}`);
+      if (!playerResponse.ok) {
+        throw new Error(playerDataResult.message || 'Failed to fetch player data');
       }
-    } catch (error) {
-      setResult(`❌ Error: ${error}`);
-    } finally {
-      setLoading(false);
+
+      setPlayerData(playerDataResult);
+
+      // Save to recent searches
+      addRecentSearch(playerDataResult.tag, playerDataResult.name);
+
+      // Create user collection for filtering
+      const collection = createUserCollection(playerDataResult.cards);
+      setUserCollection(collection);
+
+      // Step 2: Fetch top decks
+      setLoadingState('loading-decks');
+      const decksResponse = await fetch('/api/top-decks');
+      const decksDataResult = await decksResponse.json();
+
+      if (!decksResponse.ok) {
+        throw new Error(decksDataResult.message || 'Failed to fetch top decks');
+      }
+
+      setTopDecks(decksDataResult.decks);
+
+      // Step 3: Filter decks
+      setLoadingState('filtering');
+      const buildableDecks = filterDecks(decksDataResult.decks, collection);
+      setFilteredDecks(buildableDecks);
+
+      setLoadingState('complete');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      setLoadingState('error');
     }
   };
 
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-5xl font-bold text-center mb-4" style={{
-          background: 'linear-gradient(90deg, #7AA5F2 0%, #FFC043 50%, #7AA5F2 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-        }}>
+        {/* Header */}
+        <h1
+          className="text-5xl font-bold text-center mb-4"
+          style={{
+            background: 'linear-gradient(90deg, #7AA5F2 0%, #FFC043 50%, #7AA5F2 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+          }}
+        >
           CR Deck Builder
         </h1>
         <p className="text-center mb-12 text-lg" style={{ color: '#94A3B8' }}>
           Find meta decks you can build with your card collection
         </p>
 
-        {/* API Test Section */}
-        <div className="cr-card p-8 max-w-2xl mx-auto mb-8">
-          <h2 className="text-2xl font-bold mb-6" style={{ color: '#FFC043' }}>
-            API Test Panel
-          </h2>
+        {/* Player Tag Input */}
+        <PlayerTagInput
+          onSubmit={handlePlayerTagSubmit}
+          isLoading={loadingState !== 'idle' && loadingState !== 'complete' && loadingState !== 'error'}
+          error={error}
+        />
 
-          <div className="space-y-4">
-            <div>
-              <label className="block mb-2 font-semibold" style={{ color: '#EDEDED' }}>
-                Test Player API
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  className="cr-input flex-1"
-                  placeholder="Enter player tag (e.g., #99U2L2)"
-                  value={playerTag}
-                  onChange={(e) => setPlayerTag(e.target.value)}
-                  disabled={loading}
-                />
-                <button
-                  className="cr-button-primary"
-                  onClick={testPlayerAPI}
-                  disabled={loading || !playerTag}
-                >
-                  Test
-                </button>
+        {/* Loading States */}
+        {loadingState === 'loading-player' && (
+          <LoadingSpinner message="Fetching your card collection..." />
+        )}
+
+        {loadingState === 'loading-decks' && (
+          <LoadingSpinner message="Fetching top meta decks (this may take ~30 seconds)..." />
+        )}
+
+        {loadingState === 'filtering' && (
+          <LoadingSpinner message="Finding decks you can build..." />
+        )}
+
+        {/* Results */}
+        {loadingState === 'complete' && playerData && (
+          <div>
+            {/* Player Info Banner */}
+            <div className="cr-card p-6 mb-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold" style={{ color: '#EDEDED' }}>
+                    {playerData.name}
+                  </h2>
+                  <p style={{ color: '#94A3B8' }}>
+                    {playerData.tag} • {playerData.cards.length} cards unlocked
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-bold" style={{ color: '#FFC043' }}>
+                    {playerData.trophies.toLocaleString()}
+                  </p>
+                  <p className="text-sm" style={{ color: '#94A3B8' }}>
+                    Trophies
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div>
-              <label className="block mb-2 font-semibold" style={{ color: '#EDEDED' }}>
-                Test Top Decks API
-              </label>
-              <button
-                className="cr-button-secondary w-full"
-                onClick={testTopDecksAPI}
-                disabled={loading}
-              >
-                Fetch Top 50 Decks
-              </button>
+            {/* Deck Grid */}
+            <DeckGrid decks={filteredDecks} isLoading={false} />
+          </div>
+        )}
+
+        {/* Info Cards (shown when idle) */}
+        {loadingState === 'idle' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
+            <div className="cr-card p-6">
+              <h3 className="text-xl font-semibold mb-2" style={{ color: '#5B8DEE' }}>
+                Player Sync
+              </h3>
+              <p className="text-sm" style={{ color: '#94A3B8' }}>
+                Enter your player tag to sync your card collection
+              </p>
             </div>
 
-            {loading && (
-              <div className="text-center py-4" style={{ color: '#5B8DEE' }}>
-                Loading...
-              </div>
-            )}
+            <div className="cr-card p-6">
+              <h3 className="text-xl font-semibold mb-2" style={{ color: '#FFC043' }}>
+                Meta Decks
+              </h3>
+              <p className="text-sm" style={{ color: '#94A3B8' }}>
+                Fetches decks from top 50 global players
+              </p>
+            </div>
 
-            {result && (
-              <div
-                className="p-4 rounded-lg font-mono text-sm"
-                style={{ backgroundColor: '#1A2347', color: '#EDEDED' }}
-              >
-                {result}
-              </div>
-            )}
+            <div className="cr-card p-6">
+              <h3 className="text-xl font-semibold mb-2" style={{ color: '#A057D9' }}>
+                Smart Filter
+              </h3>
+              <p className="text-sm" style={{ color: '#94A3B8' }}>
+                Shows only decks you can build right now
+              </p>
+            </div>
           </div>
-        </div>
-
-        {/* Info Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-          <div className="cr-card p-6">
-            <h3 className="text-xl font-semibold mb-2" style={{ color: '#5B8DEE' }}>Player Sync</h3>
-            <p className="text-sm" style={{ color: '#94A3B8' }}>
-              Enter your player tag to sync your card collection
-            </p>
-          </div>
-
-          <div className="cr-card p-6">
-            <h3 className="text-xl font-semibold mb-2" style={{ color: '#FFC043' }}>Meta Decks</h3>
-            <p className="text-sm" style={{ color: '#94A3B8' }}>
-              Fetches decks from top 50 global players
-            </p>
-          </div>
-
-          <div className="cr-card p-6">
-            <h3 className="text-xl font-semibold mb-2" style={{ color: '#A057D9' }}>Smart Filter</h3>
-            <p className="text-sm" style={{ color: '#94A3B8' }}>
-              Shows only decks you can build right now
-            </p>
-          </div>
-        </div>
+        )}
       </div>
     </main>
   );
