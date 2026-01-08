@@ -18,10 +18,11 @@ export async function GET() {
 
     console.log('[API] Cache miss - fetching fresh top decks');
 
-    // Step 1: Fetch top 50 players from global trophy rankings
-    // Using the international location which represents global rankings
+    // Step 1: Fetch top players from North America
+    // Note: The API doesn't have a single "global" rankings endpoint
+    // We'll fetch from North America which has high player activity
     const rankingsResponse = await fetch(
-      `${CR_API_CONFIG.baseUrl}/locations/57000249/rankings/players?limit=50`,
+      `${CR_API_CONFIG.baseUrl}/locations/57000001/rankings/players?limit=50`,
       {
         headers: createApiHeaders(),
       }
